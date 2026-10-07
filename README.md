@@ -37,6 +37,7 @@
 | 唯一 authority | 每条规则、状态、错误语义和资源上限，只由一个 module 最终决定；调用方不重新推断结果 |
 | 机制可替换，契约不可含糊 | 算法和存储方案是实现机制，不应被写成产品需求；只要外部契约不变就该能换掉 |
 | review 意见是证据，不是指令 | 先定位被违反的 SPEC 义务和真正的 authority，再选满足该义务的最小修复 |
+| 修复后继续 review | 每次修复或消融后都重新审查当前完整改动，直到没有进一步问题且此前问题全部解决；后续轮次可加深 authority 边界与测试消融审查 |
 | 测试要能表达意图 | 保留能在旧行为上失败、且靠近 authority 的测试；删除重复、伪 regression 和靠 wall-clock 猜测的测试 |
 | 复杂度要问出处 | 说不清新增复杂度对应哪条 SPEC 义务时，返回设计门禁而不是继续叠加补丁 |
 
@@ -52,9 +53,12 @@ flowchart TD
     E --> F{设计门禁}
     F -->|复杂度扩散到 callers| C
     F -->|通过| G[阶段 D · 按义务切片的实现循环]
-    G --> H[阶段 E · Review 循环]
-    H --> I[阶段 F · 测试消融与最终一致性审查]
-    I --> J[请求 re-review / 合并]
+    G --> H[阶段 E · Review 当前完整改动]
+    H -->|发现问题| K[根因修复 · 同步设计与测试 · 验证]
+    K --> H
+    H -->|无进一步问题且此前问题已解决| I[阶段 F · 测试消融与最终一致性审查]
+    I -->|有修改或发现问题| K
+    I -->|最终门禁通过且 review 后无修改| J[请求 re-review / 合并]
     H -->|authority 或 seam 问题| E
 ```
 
@@ -66,7 +70,9 @@ flowchart TD
 
 **设计门禁** — 每条规则只有一个 authority；错误产生、标准化、展示由不同职责清楚承担；资源测量与上限有明确归属；删掉这个 module 后复杂度会消失（locality）而不是扩散到所有 callers。
 
-**最终门禁** — SPEC、设计报告、代码、测试一致；没有废弃机制和过期文档；每个保留测试都对应最终义务或真实 seam；项目要求的 build / format / lint / typecheck / tests 已运行，未运行的项目被明确报告。
+**最终门禁** — SPEC、设计报告、代码、测试一致；没有废弃机制和过期文档；每个保留测试都对应最终义务或真实 seam；项目要求的 build / format / lint / typecheck / tests 已运行，未运行的项目被明确报告；当前完整改动的最后一轮 review 没有进一步问题、此前问题全部解决，且该轮之后没有未经再次 review 的修改。
+
+Review 不设固定轮数：每次修复或测试消融后都继续 review。前一两轮之后可说明本轮重点，例如代码模块的 authority 边界、过度设计、过度测试、测试消融和最终一致性；重点不能替代完整审查。外部阻塞或待决契约必须明确报告为未完成。
 
 ## 安装
 
@@ -112,7 +118,7 @@ references/review-and-ablation-checklist.md   # Review、机制审计、测试�
 
 **PR Lifecycle** is an agent skill that treats a pull request as a contract that keeps converging: first decide what the system must guarantee, then decide which modules implement it through which interfaces — and keep code, tests, and the design report aligned with that contract.
 
-It separates four kinds of content (process rules · SPEC · architecture · implementation mechanism), assigns every rule, state, error, and resource limit a single authority, and runs a six-stage loop from fact recovery and grilling to implementation, review, test ablation, and final re-review. Reference templates for the SPEC / design report and the review & ablation checklist are included.
+It separates four kinds of content (process rules · SPEC · architecture · implementation mechanism), assigns every rule, state, error, and resource limit a single authority, and runs a six-stage loop from fact recovery and grilling to implementation, review, test ablation, and final re-review. Every fix or ablation is followed by another review of the full current change, until no further issues are found and all prior confirmed issues are resolved. Later rounds can deepen authority-boundary and test-ablation checks without narrowing review coverage. Reference templates for the SPEC / design report and the review & ablation checklist are included.
 
 Install: clone this repo into your agent's skills directory and point your agent at it — `SKILL.md` is the entry point.
 
